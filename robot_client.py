@@ -283,7 +283,7 @@ class Robot:
         self.connection = None
         self.tasks = {}
 
-        self.orientation = 0 # Our orientation from "up". 0 to 359
+        self.orientation = 0 # Our orientation from "EAST". 180 to -180, with positive being clockwise.
         self.neighbours = {} # All other robots in the area (see format, above)
         self.role = 'DEFENDER' # Will be NOMAD, DEFENDER, MID_FIELD, STRIKER
         self.team = 'BLUE' # Will be UNASSIGNED, RED, BLUE
