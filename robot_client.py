@@ -34,7 +34,7 @@ function should be declared with "async" (see the simple_obstacle_avoidance() ex
 main_loop() using loop.run_until_complete(async_thing_to_run(ids))
 """
 
-robot_ids = [31, 32, 38]
+robot_ids = [34]
 
 def main_loop():
     # This requests all virtual sensor data from the tracking server for the robots specified in robot_ids
@@ -114,14 +114,34 @@ async def send_commands(robot):
         detects something in front of it, when it will turn instead.
         Then every 5 seconds it attempts to regroup the robots by turning them towards the average bearing of all other robots.
         """
+        print ("robot state is ", robot.state)
+
         if robot.state == RobotState.FORWARDS:
             left = right = robot.MAX_SPEED
-            if (time.time() - robot.turn_time > 0.5) and any(ir > 80 for ir in robot.ir_readings):
-                robot.turn_time = time.time()
+            #if (time.time() - robot.turn_time > 0.5) and any(ir > 80 for ir in robot.ir_readings):
+            robot.turn_time = time.time()
+            ### Add code here ###
+            if robot.role == "STRIKER":
+                if robot.bearing_to_ball > 0:
+                    left = int(float(robot.MAX_SPEED)/1.4) #If we do a "full speed turn" then they overshoot. 
+                    right = -int(float(robot.MAX_SPEED)/1.4) #A good implementation would turn at a speed based on how misalaigned they are
+                else:
+                    left = -int(float(robot.MAX_SPEED)/1.4)
+                    right = int(float(robot.MAX_SPEED)/1.4)
+            
+            elif robot.role == "DEFENDER":
+                if robot.progress_through_zone > 1:
+                    robot.state = RobotState.TO_OUR_GOAL
+                else:
+                    robot.state = RobotState.TO_BALL
+
+            elif robot.role == "MIDFIELDER" :
                 robot.state = random.choice((RobotState.LEFT, RobotState.RIGHT))
-            elif (time.time() - robot.regroup_time > 5): # Every 5 seconds, go into the "regroup" state
-                robot.regroup_time = time.time()
-                robot.state = RobotState.REGROUP
+            else:
+                robot.state = random.choice((RobotState.LEFT, RobotState.RIGHT))
+            # elif (time.time() - robot.regroup_time > 5): # Every 5 seconds, go into the "regroup" state
+            #     robot.regroup_time = time.time()
+            #     robot.state = RobotState.REGROUP
 
         elif robot.state == RobotState.BACKWARDS:
             left = right = -robot.MAX_SPEED
@@ -194,7 +214,11 @@ async def send_commands(robot):
 
         #This is an example state for moving towards our goal
         elif robot.state == RobotState.TO_OUR_GOAL:
-            if robot.distance_to_our_goal < 0.2:
+            if robot.role == "DEFENDER":
+                if robot.distance_to_our_goal < 0.2:
+                    robot.state = RobotState.STOP
+
+            elif robot.distance_to_our_goal < 0.2:
                 robot.state = RobotState.TO_THEIR_GOAL
             message["set_leds_colour"] = "cyan"
             if abs(robot.bearing_to_our_goal) < 20:
@@ -261,8 +285,8 @@ class Robot:
 
         self.orientation = 0 # Our orientation from "up". 0 to 359
         self.neighbours = {} # All other robots in the area (see format, above)
-        self.role = 'NOMAD' # Will be NOMAD, DEFENDER, MID_FIELD, STRIKER
-        self.team = 'UNASSIGNED' # Will be UNASSIGNED, RED, BLUE
+        self.role = 'DEFENDER' # Will be NOMAD, DEFENDER, MID_FIELD, STRIKER
+        self.team = 'BLUE' # Will be UNASSIGNED, RED, BLUE
         self.remaining_time = 0 # Number of seconds left in the match
         self.bearing_to_ball = 0
         self.distance_to_ball = 0
@@ -280,6 +304,7 @@ class Robot:
         self.battery_percentage = 0
 
         # These are used by the example behaviour. Feel free to change.
+
         self.state = RobotState.STOP
         self.turn_time = time.time()
         self.regroup_time = time.time()
